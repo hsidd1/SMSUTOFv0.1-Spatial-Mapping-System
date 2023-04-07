@@ -6,10 +6,7 @@
 #include "tm4c1294ncpdt.h"
 #include "VL53L1X_api.h"
 
-
-
-
-
+// I2C configuration        
 #define I2C_MCS_ACK             0x00000008  // Data Acknowledge Enable
 #define I2C_MCS_DATACK          0x00000008  // Acknowledge Data
 #define I2C_MCS_ADRACK          0x00000004  // Acknowledge Address
@@ -21,24 +18,21 @@
 #define I2C_MCR_MFE             0x00000010  // I2C Master Function Enable
 
 #define MAXRETRIES              5           // number of receive attempts before giving up
+
 void I2C_Init(void){
   SYSCTL_RCGCI2C_R |= SYSCTL_RCGCI2C_R0;           													// activate I2C0
   SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R1;          												// activate port B
   while((SYSCTL_PRGPIO_R&0x0002) == 0){};																		// ready?
-
     GPIO_PORTB_AFSEL_R |= 0x0C;           																	// 3) enable alt funct on PB2,3       0b00001100
     GPIO_PORTB_ODR_R |= 0x08;             																	// 4) enable open drain on PB3 only
-
     GPIO_PORTB_DEN_R |= 0x0C;             																	// 5) enable digital I/O on PB2,3
 //    GPIO_PORTB_AMSEL_R &= ~0x0C;          																// 7) disable analog functionality on PB2,3
-
                                                                             // 6) configure PB2,3 as I2C
 //  GPIO_PORTB_PCTL_R = (GPIO_PORTB_PCTL_R&0xFFFF00FF)+0x00003300;
   GPIO_PORTB_PCTL_R = (GPIO_PORTB_PCTL_R&0xFFFF00FF)+0x00002200;    //TED
     I2C0_MCR_R = I2C_MCR_MFE;                      													// 9) master function enable
     I2C0_MTPR_R = 0b0000000000000101000000000111011;                       	// 8) configure for 100 kbps clock (added 8 clocks of glitch suppression ~50ns)
 //    I2C0_MTPR_R = 0x3B;                                        						// 8) configure for 100 kbps clock
-        
 }
 
 //The VL53L1X needs to be reset using XSHUT.  We will use PG0
@@ -68,14 +62,64 @@ void VL53L1X_XSHUT(void){
     
 }
 
+// Initializing port H for stepper motor 
+void PortH_Init(void){
+    //Use PortM pins for output
+    SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R7;                // activate clock for Port N
+    while((SYSCTL_PRGPIO_R&SYSCTL_PRGPIO_R7) == 0){};   // allow time for clock to stabilize
+    GPIO_PORTH_DIR_R |= 0xFF;                                       // make PN0 out (PN0 built-in LED1)
+  GPIO_PORTH_AFSEL_R &= ~0xFF;                                  // disable alt funct on PN0
+  GPIO_PORTH_DEN_R |= 0xFF;                                     // enable digital I/O on PN0
+                                                                                                    // configure PN1 as GPIO
+  //GPIO_PORTM_PCTL_R = (GPIO_PORTM_PCTL_R&0xFFFFFF0F)+0x00000000;
+  GPIO_PORTH_AMSEL_R &= ~0xFF;                                  // disable analog functionality on PN0      
+    return;
+}
 
-//*********************************************************************************************************
-//*********************************************************************************************************
-//***********					MAIN Function				*****************************************************************
-//*********************************************************************************************************
-//*********************************************************************************************************
+// Initialising for configuring ports for onboard assigned LED
+void PortF0F4_Init(void) {
+    SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R5; //activate the clock for Port F
+    while ((SYSCTL_PRGPIO_R & SYSCTL_PRGPIO_R5) == 0) {};//allow time for clock to stabilize
+    GPIO_PORTF_DIR_R = 0b00010001; //Make PF0 and PF4 outputs, to turn on LED's
+    GPIO_PORTF_DEN_R = 0b00010001;
+    return;
+}
+
+// ******************************* MAIN CODE BEGINS !! *********************************** //
 uint16_t	dev = 0x29;			//address of the ToF sensor as an I2C slave peripheral
 int status=0;
+
+// Flashes D4 - takes parameter for number of flashes
+void FlashLED(int flash_count){
+    for (int i = 0; i < flash_count; i++) {
+    GPIO_PORTF_DATA_R ^= 0b10000;
+    SysTick_Wait10ms(1);
+    GPIO_PORTF_DATA_R ^= 0b10000;
+    SysTick_Wait10ms(1);
+    }
+}
+
+void spin(){
+    int delay = 40000;
+    int angle = 64; // 512/8 = 64
+    int measure_point = 16; // 64/4 = 16 
+		for (int j = 0; j < angle; j++){ 
+      // 64 steps --> 45 deg (360 / 8): 4 state changes 45/4 = 11.25 deg
+		  GPIO_PORTH_DATA_R = 0b00001001;
+      SysTick_Wait(delay);
+      GPIO_PORTH_DATA_R = 0b00000011;
+      SysTick_Wait(delay);
+      GPIO_PORTH_DATA_R = 0b00000110;
+      SysTick_Wait(delay);
+      GPIO_PORTH_DATA_R = 0b00001100;
+      SysTick_Wait(delay);
+      totalsteps++;
+		}
+		if(totalsteps % measure_point == 0){ // 16 increments is 11.25 deg (45/4)
+      FlashLED(3);
+      // CALL MEASURE FXN
+		}     
+}
 
 int main(void) {
   uint8_t byteData, sensorState=0, myByteArray[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} , i=0;
@@ -94,18 +138,13 @@ int main(void) {
 	I2C_Init();
 	UART_Init();
 	
-	// hello world!
-	UART_printf("Program Begins\r\n");
-	int mynumber = 1;
-	sprintf(printf_buffer,"2DX ToF Program Studio Code %d\r\n",mynumber);
-	UART_printf(printf_buffer);
 
 
-/* Those basic I2C read functions can be used to check your own I2C functions */
-	status = VL53L1X_GetSensorId(dev, &wordData);
+// /* Those basic I2C read functions can be used to check your own I2C functions */
+// 	status = VL53L1X_GetSensorId(dev, &wordData);
 
-	sprintf(printf_buffer,"(Model_ID, Module_Type)=0x%x\r\n",wordData);
-	UART_printf(printf_buffer);
+// 	sprintf(printf_buffer,"(Model_ID, Module_Type)=0x%x\r\n",wordData);
+// 	UART_printf(printf_buffer);
 
 	// Booting ToF chip
 	while(sensorState==0){
@@ -117,12 +156,12 @@ int main(void) {
 	
 	status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
 	
-  /* This function must to be called to initialize the sensor with the default setting  */
+  /* Initialize sensor in default mode - ranges at 10 Hz in Long distance mode */
   status = VL53L1X_SensorInit(dev);
 	Status_Check("SensorInit", status);
 
 	
-  /* Optional functions to be used to change the main ranging parameters according the application requirements to get the best ranging performances */
+/* Optional functions to be used to change the main ranging parameters according the application requirements to get the best ranging performances */
 //  status = VL53L1X_SetDistanceMode(dev, 2); /* 1=short, 2=long */
 //  status = VL53L1X_SetTimingBudgetInMs(dev, 100); /* in ms possible values [20, 50, 100, 200, 500] */
 //  status = VL53L1X_SetInterMeasurementInMs(dev, 200); /* in ms, IM must be > = TB */
