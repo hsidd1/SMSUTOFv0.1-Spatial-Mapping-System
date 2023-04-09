@@ -1,4 +1,19 @@
 // SysTick.h
+
+#include <stdint.h>
+// Initialize SysTick with busy wait running at bus clock.
+void SysTick_Init(void);
+
+// Time delay using busy wait.
+// The delay parameter is in units of the core clock. (units of 8.333 nsec for 120 MHz clock)
+void SysTick_Wait(uint32_t delay);
+
+// Time delay using busy wait.
+// This assumes 120 MHz system clock.
+void SysTick_Wait10ms(uint32_t delay);
+
+void SysTick_Wait10us(uint32_t delay);
+
 // Runs on TM4C1294
 // Provide functions that initialize the SysTick module, wait at least a
 // designated number of clock cycles, and wait approximately a multiple
@@ -33,14 +48,3 @@
  For more information about my classes, my research, and my books, see
  http://users.ece.utexas.edu/~valvano/
  */
-#include <stdint.h>
-// Initialize SysTick with busy wait running at bus clock.
-void SysTick_Init(void);
-
-// Time delay using busy wait.
-// The delay parameter is in units of the core clock. (units of 8.333 nsec for 120 MHz clock)
-void SysTick_Wait(uint32_t delay);
-
-// Time delay using busy wait.
-// This assumes 120 MHz system clock.
-void SysTick_Wait10ms(uint32_t delay);

@@ -5,6 +5,7 @@
 #include "onboardLEDs.h"
 #include "tm4c1294ncpdt.h"
 #include "VL53L1X_api.h"
+#include "math.h"
 
 // I2C configuration        
 #define I2C_MCS_ACK             0x00000008  // Data Acknowledge Enable
@@ -77,7 +78,7 @@ void PortH_Init(void){
 }
 
 // Initialising for configuring ports for onboard assigned LED
-void PortF0F4_Init(void) {
+void PortF0F4_Init(void) { // F4 - measurement status, F0 - Additional status
     SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R5; //activate the clock for Port F
     while ((SYSCTL_PRGPIO_R & SYSCTL_PRGPIO_R5) == 0) {};//allow time for clock to stabilize
     GPIO_PORTF_DIR_R = 0b00010001; //Make PF0 and PF4 outputs, to turn on LED's
@@ -85,22 +86,45 @@ void PortF0F4_Init(void) {
     return;
 }
 
-// ******************************* MAIN CODE BEGINS !! *********************************** //
+// Initiasiling Port M for buttons - start/stop spinning and start/stop recording
+void PortM0M1M2M3_Init(void) {
+    SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R11; //activate the clock for Port M
+    while ((SYSCTL_PRGPIO_R & SYSCTL_PRGPIO_R11) == 0) {}; //allow time for clock to stabilize
+    GPIO_PORTM_DIR_R = 0b00000000; // Make PM0:PM3 inputs, reading if the button is pressed or not
+    GPIO_PORTM_DEN_R = 0b00001111; // Enable PM0:PM3
+    return;
+}
+
+// Give clock to Port J and initalize as input GPIO-- 0 and 1 for now 
+void PortJ_Init(void){
+	SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R8;					// Activate clock for Port J
+	while((SYSCTL_PRGPIO_R&SYSCTL_PRGPIO_R8) == 0){};	// Allow time for clock to stabilize
+  GPIO_PORTJ_DIR_R &= ~0x03;    										// Make PJ1 input 
+  GPIO_PORTJ_DEN_R |= 0x03;     										// Enable digital I/O on PJ1
+	
+	GPIO_PORTJ_PCTL_R &= ~0x000000FF;	 								//? Configure PJ1 as GPIO 
+	GPIO_PORTJ_AMSEL_R &= ~0x03;											//??Disable analog functionality on PJ1		
+	GPIO_PORTJ_PUR_R |= 0x03;													//	Enable weak pull up resistor
+}
+
+void FlashLED(int flash_count);
+void spin_cw();
+// ******************************* !! MAIN CODE BEGINS !! *********************************** //
 uint16_t	dev = 0x29;			//address of the ToF sensor as an I2C slave peripheral
 int status=0;
 
-// Flashes D4 - takes parameter for number of flashes
+// Flashes D3 - takes parameter for number of flashes
 void FlashLED(int flash_count){
     for (int i = 0; i < flash_count; i++) {
-    GPIO_PORTF_DATA_R ^= 0b10000;
+    GPIO_PORTF_DATA_R ^= 0b10000; // F4
     SysTick_Wait10ms(1);
     GPIO_PORTF_DATA_R ^= 0b10000;
     SysTick_Wait10ms(1);
     }
 }
 
-void spin(){
-    int delay = 40000;
+void spin_cw(){
+    int delay = 4000; // minimum delay between states for given clock
     int angle = 64; // 512/8 = 64
     int measure_point = 16; // 64/4 = 16 
 		for (int j = 0; j < angle; j++){ 
@@ -115,7 +139,7 @@ void spin(){
       SysTick_Wait(delay);
       totalsteps++;
 		}
-		if(totalsteps % measure_point == 0){ // 16 increments is 11.25 deg (45/4)
+		if(totalsteps % measure_point == 0){ // 16 (64/4) increments is 11.25 deg (45/4)
       FlashLED(3);
       // CALL MEASURE FXN
 		}     
@@ -138,6 +162,12 @@ int main(void) {
 	I2C_Init();
 	UART_Init();
 	
+  // init ports
+  PortM0M1M2M3_Init();
+  PortF0F4_Init();
+  PortH_Init();
+  PortJ_Init();
+
 
 
 // /* Those basic I2C read functions can be used to check your own I2C functions */
