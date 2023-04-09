@@ -108,9 +108,9 @@ void PortJ_Init(void){
 }
 
 void FlashLED(int flash_count);
-void spin_cw();
-void spin_ccw();
-void take_measurement();
+void spin_cw(uint8_t dataReady, uint16_t Distance);
+void spin_ccw(uint8_t dataReady, uint16_t Distance);
+void take_measurement(uint8_t dataReady, uint16_t Distance);
 
 /* *********************************************************************************************/
 // ******************************* !! MAIN CODE BEGINS !! *********************************** //
@@ -129,7 +129,7 @@ void FlashLED(int flash_count){
     }
 }
 
-void spin_cw(){
+void spin_cw(uint8_t dataReady, uint16_t Distance){
     int delay = 4000; // minimum delay between states for given clock
     int angle = 64; // 512/8 = 64
     int measure_point = 16; // 64/4 = 16 
@@ -152,11 +152,11 @@ void spin_cw(){
     }
 		if(totalsteps % measure_point == 0){ // 16 (64/4) increments is 11.25 deg (45/4)
       FlashLED(3);
-      take_measurement();
+      take_measurement(dataReady, Distance);
 		}     
 }
 
-void spin_ccw(){
+void spin_ccw(uint8_t dataReady, uint16_t Distance){
     int delay = 4000; // minimum delay between states for given clock
     int angle = 64; // 512/8 = 64
     int measure_point = 16; // 64/4 = 16 
@@ -179,16 +179,12 @@ void spin_ccw(){
     }
 		if(totalsteps % measure_point == 0){ // 16 (64/4) increments is 11.25 deg (45/4)
       FlashLED(3);
-      take_measurement();
+      take_measurement(dataReady, Distance);
 		}     
 }
 
-void take_measurement(){
-  // check for peripheral button press to stop 
-  if((GPIO_PORTM_DATA_R&0b00000001)==0){
-  SysTick_Wait10ms(10);
-  break;
-  }
+void take_measurement(uint8_t dataReady, uint16_t Distance){
+  
   //wait until the ToF sensor's data is ready
   while (dataReady == 0){
     status = VL53L1X_CheckForDataReady(dev, &dataReady);
@@ -262,13 +258,23 @@ int main(void) {
 
     int dir = 0;
     if(!dir){
-        spin_cw();	
-        totalsteps = 0;
-      }else if (dir){
-        spin_ccw(); 
-        totalsteps = 0;
-      }
-      dir ^= 1;
+      // check for peripheral button press to stop 
+    if((GPIO_PORTM_DATA_R&0b00000001)==0){
+    SysTick_Wait10ms(10);
+    break;
+    }
+    spin_cw(dataReady, Distance);	
+    totalsteps = 0;
+    }else if (dir){
+    // check for peripheral button press to stop 
+    if((GPIO_PORTM_DATA_R&0b00000001)==0){
+    SysTick_Wait10ms(10);
+    break;
+    }
+    spin_ccw(dataReady, Distance); 
+    totalsteps = 0;
+    }
+    dir ^= 1;
 
     VL53L1X_StopRanging(dev);
     while(1) {}
