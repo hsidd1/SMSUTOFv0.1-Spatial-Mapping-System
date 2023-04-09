@@ -109,9 +109,14 @@ void PortJ_Init(void){
 
 void FlashLED(int flash_count);
 void spin_cw();
+void spin_ccw();
+
+/* *********************************************************************************************/
 // ******************************* !! MAIN CODE BEGINS !! *********************************** //
+/* ********************************************************************************************/
 uint16_t	dev = 0x29;			//address of the ToF sensor as an I2C slave peripheral
 int status=0;
+int totalsteps = 0;
 
 // Flashes D3 - takes parameter for number of flashes
 void FlashLED(int flash_count){
@@ -139,6 +144,38 @@ void spin_cw(){
       SysTick_Wait(delay);
       totalsteps++;
 		}
+    // stop button
+    if(GPIO_PORTJ_DATA_R == 0b0){
+      SysTick_Wait10ms(10);
+				return;
+    }
+		if(totalsteps % measure_point == 0){ // 16 (64/4) increments is 11.25 deg (45/4)
+      FlashLED(3);
+      // CALL MEASURE FXN
+		}     
+}
+
+void spin_ccw(){
+    int delay = 4000; // minimum delay between states for given clock
+    int angle = 64; // 512/8 = 64
+    int measure_point = 16; // 64/4 = 16 
+		for (int j = 0; j < angle; j++){ 
+      // 64 steps --> 45 deg (360 / 8): 4 state changes 45/4 = 11.25 deg
+      GPIO_PORTH_DATA_R = 0b00001100;		
+      SysTick_Wait(delay);
+			GPIO_PORTH_DATA_R = 0b00000110;
+      SysTick_Wait(delay);
+			GPIO_PORTH_DATA_R = 0b00000011;
+      SysTick_Wait(delay);
+			GPIO_PORTH_DATA_R = 0b00001001;
+      SysTick_Wait(delay);
+      totalsteps++;
+		}
+    // stop button PJ1 
+    if(GPIO_PORTJ_DATA_R == 0b00000000){
+      SysTick_Wait10ms(10);
+				return;
+    }
 		if(totalsteps % measure_point == 0){ // 16 (64/4) increments is 11.25 deg (45/4)
       FlashLED(3);
       // CALL MEASURE FXN
@@ -170,65 +207,67 @@ int main(void) {
 
 
 
-// /* Those basic I2C read functions can be used to check your own I2C functions */
-// 	status = VL53L1X_GetSensorId(dev, &wordData);
+  // 	status = VL53L1X_GetSensorId(dev, &wordData);
+  // 	sprintf(printf_buffer,"(Model_ID, Module_Type)=0x%x\r\n",wordData);
+  // 	UART_printf(printf_buffer);
 
-// 	sprintf(printf_buffer,"(Model_ID, Module_Type)=0x%x\r\n",wordData);
-// 	UART_printf(printf_buffer);
-
-	// Booting ToF chip
-	while(sensorState==0){
-		status = VL53L1X_BootState(dev, &sensorState);
-		SysTick_Wait10ms(10);
+  // Booting ToF chip
+  while(sensorState==0){
+  status = VL53L1X_BootState(dev, &sensorState);
+  SysTick_Wait10ms(10);
   }
-	FlashAllLEDs();
-	UART_printf("ToF Chip Booted!\r\n Please Wait...\r\n");
-	
-	status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
-	
+  //FlashAllLEDs();
+  //UART_printf("ToF Chip Booted!\r\n Please Wait...\r\n");
+
+  status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
+
   /* Initialize sensor in default mode - ranges at 10 Hz in Long distance mode */
   status = VL53L1X_SensorInit(dev);
-	Status_Check("SensorInit", status);
+  Status_Check("SensorInit", status);
 
-	
-/* Optional functions to be used to change the main ranging parameters according the application requirements to get the best ranging performances */
-//  status = VL53L1X_SetDistanceMode(dev, 2); /* 1=short, 2=long */
-//  status = VL53L1X_SetTimingBudgetInMs(dev, 100); /* in ms possible values [20, 50, 100, 200, 500] */
-//  status = VL53L1X_SetInterMeasurementInMs(dev, 200); /* in ms, IM must be > = TB */
+    
+  /* Optional functions to be used to change the main ranging parameters according the application requirements to get the best ranging performances */
+  //  status = VL53L1X_SetDistanceMode(dev, 2); /* 1=short, 2=long */
+  //  status = VL53L1X_SetTimingBudgetInMs(dev, 100); /* in ms possible values [20, 50, 100, 200, 500] */
+  //  status = VL53L1X_SetInterMeasurementInMs(dev, 200); /* in ms, IM must be > = TB */
 
   status = VL53L1X_StartRanging(dev);   // This function has to be called to enable the ranging
 
 	
-	// Get the Distance Measures 50 times
-	for(int i = 0; i < 50; i++) {
-		
-		//wait until the ToF sensor's data is ready
-	  while (dataReady == 0){
-		  status = VL53L1X_CheckForDataReady(dev, &dataReady);
-          FlashLED3(1);
-          VL53L1_WaitMs(dev, 5);
-	  }
-		dataReady = 0;
-	  
-		//read the data values from ToF sensor
-		status = VL53L1X_GetRangeStatus(dev, &RangeStatus);
-	  status = VL53L1X_GetDistance(dev, &Distance);					//The Measured Distance value
-		status = VL53L1X_GetSignalRate(dev, &SignalRate);
-		status = VL53L1X_GetAmbientRate(dev, &AmbientRate);
-		status = VL53L1X_GetSpadNb(dev, &SpadNum);
+  for(int i = 0; i < 8; i++) { // 360 / 32 = 11.25
+  // check for peripheral button press to stop 
+    if((GPIO_PORTM_DATA_R&0b00000001)==0){
+    SysTick_Wait10ms(10);
+    break;
+    }
+    //wait until the ToF sensor's data is ready
+      while (dataReady == 0){
+        status = VL53L1X_CheckForDataReady(dev, &dataReady);
+        FlashLED3(1);
+        VL53L1_WaitMs(dev, 5);
+      }
+      dataReady = 0;
+
+      
+      // store received data
+      status = VL53L1X_GetDistance(dev, &Distance);					//The Measured Distance value
+
+      if(!dir){
+        spin_cw();	
+        totalsteps = 0;
+      }else if (dir){
+        spin_ccw(); 
+        totalsteps = 0;
+      }
+
+      status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
+      // Print the resulted readings to UART
+      sprintf(printf_buffer,"%u\n",Distance);
+      UART_printf(printf_buffer);
+      SysTick_Wait10ms(50);
+      dir ^= 1;
     
-		FlashLED4(1);
-
-	  status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
-		
-		// print the resulted readings to UART
-		sprintf(printf_buffer,"%u, %u, %u, %u, %u\r\n", RangeStatus, Distance, SignalRate, AmbientRate,SpadNum);
-		UART_printf(printf_buffer);
-	  SysTick_Wait10ms(50);
-  }
-  
-	VL53L1X_StopRanging(dev);
-  while(1) {}
-
+    VL53L1X_StopRanging(dev);
+    while(1) {}
+    }
 }
-
