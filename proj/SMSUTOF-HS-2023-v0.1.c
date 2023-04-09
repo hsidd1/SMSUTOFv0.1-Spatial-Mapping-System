@@ -5,7 +5,7 @@
 #include "onboardLEDs.h"
 #include "tm4c1294ncpdt.h"
 #include "VL53L1X_api.h"
-#include "math.h"
+//#include "math.h"
 
 // I2C configuration        
 #define I2C_MCS_ACK             0x00000008  // Data Acknowledge Enable
@@ -110,6 +110,7 @@ void PortJ_Init(void){
 void FlashLED(int flash_count);
 void spin_cw();
 void spin_ccw();
+void take_measurement();
 
 /* *********************************************************************************************/
 // ******************************* !! MAIN CODE BEGINS !! *********************************** //
@@ -151,7 +152,7 @@ void spin_cw(){
     }
 		if(totalsteps % measure_point == 0){ // 16 (64/4) increments is 11.25 deg (45/4)
       FlashLED(3);
-      // CALL MEASURE FXN
+      take_measurement();
 		}     
 }
 
@@ -178,9 +179,32 @@ void spin_ccw(){
     }
 		if(totalsteps % measure_point == 0){ // 16 (64/4) increments is 11.25 deg (45/4)
       FlashLED(3);
-      // CALL MEASURE FXN
+      take_measurement();
 		}     
 }
+
+void take_measurement(){
+  // check for peripheral button press to stop 
+  if((GPIO_PORTM_DATA_R&0b00000001)==0){
+  SysTick_Wait10ms(10);
+  break;
+  }
+  //wait until the ToF sensor's data is ready
+  while (dataReady == 0){
+    status = VL53L1X_CheckForDataReady(dev, &dataReady);
+    FlashLED3(1);
+    VL53L1_WaitMs(dev, 5);
+  }
+  dataReady = 0;
+
+  // store received data
+  status = VL53L1X_GetDistance(dev, &Distance);					//The Measured Distance value
+  status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
+  // Print the resulted readings to UART
+  sprintf(printf_buffer,"%u\n",Distance);
+  UART_printf(printf_buffer);
+  SysTick_Wait10ms(50);
+  }
 
 int main(void) {
   uint8_t byteData, sensorState=0, myByteArray[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} , i=0;
@@ -235,38 +259,17 @@ int main(void) {
 
 	
   for(int i = 0; i < 8; i++) { // 360 / 32 = 11.25
-  // check for peripheral button press to stop 
-    if((GPIO_PORTM_DATA_R&0b00000001)==0){
-    SysTick_Wait10ms(10);
-    break;
-    }
-    //wait until the ToF sensor's data is ready
-      while (dataReady == 0){
-        status = VL53L1X_CheckForDataReady(dev, &dataReady);
-        FlashLED3(1);
-        VL53L1_WaitMs(dev, 5);
-      }
-      dataReady = 0;
 
-      
-      // store received data
-      status = VL53L1X_GetDistance(dev, &Distance);					//The Measured Distance value
-
-      if(!dir){
+    int dir = 0;
+    if(!dir){
         spin_cw();	
         totalsteps = 0;
       }else if (dir){
         spin_ccw(); 
         totalsteps = 0;
       }
-
-      status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
-      // Print the resulted readings to UART
-      sprintf(printf_buffer,"%u\n",Distance);
-      UART_printf(printf_buffer);
-      SysTick_Wait10ms(50);
       dir ^= 1;
-    
+
     VL53L1X_StopRanging(dev);
     while(1) {}
     }
