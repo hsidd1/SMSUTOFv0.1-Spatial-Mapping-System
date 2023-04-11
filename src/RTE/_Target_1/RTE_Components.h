@@ -3,7 +3,7 @@
  * Auto generated Run-Time-Environment Configuration File
  *      *** Do not modify ! ***
  *
- * Project: 'Studio5' 
+ * Project: 'SMSUTOF-HS-2023-v0.1' 
  * Target:  'Target 1' 
  */
 

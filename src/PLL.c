@@ -92,7 +92,7 @@ void PLL_Init(void){ uint32_t timeout;
 #define Q            0
 #define N            4  // chosen for reference frequency within 4 to 30 MHz
 #define MINT         4  // 20,000,000 = (25,000,000/(0 + 1)/(4 + 1))*(4 + (0/1,024))
-// By default, set to 480,000,000 = (25,000,000/(0 + 1)/(4 + 1))*(96 + (0/1,024)) - MINT modified from 96 to 4
+// By default, this is set to 480,000,000 = (25,000,000/(0 + 1)/(4 + 1))*(96 + (0/1,024)) - MINT modified from 96 to 4
 #define MFRAC        0  // zero to reduce jitter
   //    SysClk = fVCO / (PSYSDIV + 1)
 #define SYSCLK (FXTAL/(Q+1)/(N+1))*(MINT+MFRAC/1024)/(PSYSDIV+1)
