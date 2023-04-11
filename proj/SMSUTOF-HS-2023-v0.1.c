@@ -283,6 +283,8 @@ int main(void) {
   // uncomment and connect probes to ad2 to check bus speed of system 
   //bus_pulse();
   // Booting ToF chip
+
+  // getting sensor state 
   while(sensorState==0){
   status = VL53L1X_BootState(dev, &sensorState);
   SysTick_Wait10ms(10);
@@ -304,6 +306,7 @@ int main(void) {
 
   status = VL53L1X_StartRanging(dev);   // This function has to be called to enable the ranging
 
+  // main loop - ranging enabled and ready to measure 
 	while(1){
 		//wait for interupt from button to start
 		WaitForInt();
@@ -313,23 +316,15 @@ int main(void) {
 			SysTick_Wait10ms(10);
 		}
 
-		status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
+		status = VL53L1X_ClearInterrupt(dev); 
 		
 		/* This function must to be called to initialize the sensor with the default setting  */
 		status = VL53L1X_SensorInit(dev);
 		Status_Check("SensorInit", status);
-
-		
-		/* Optional functions to be used to change the main ranging parameters according the application requirements to get the best ranging performances */
-	//  status = VL53L1X_SetDistanceMode(dev, 2); /* 1=short, 2=long */
-	//  status = VL53L1X_SetTimingBudgetInMs(dev, 100); /* in ms possible values [20, 50, 100, 200, 500] */
-	//  status = VL53L1X_SetInterMeasurementInMs(dev, 200); /* in ms, IM must be > = TB */
-
 		status = VL53L1X_StartRanging(dev);   // This function has to be called to enable the ranging
 
-		
-// 16 steps taken
-for(int i = 0; i < 16; i++) {
+  // 
+  for(int i = 0; i < 8; i++) {
     // Wait until the ToF sensor's data is ready
     while (dataReady == 0){
         status = VL53L1X_CheckForDataReady(dev, &dataReady);
@@ -362,6 +357,9 @@ spin_ccw();
 // Stop ranging after taking all measurements
 VL53L1X_StopRanging(dev);
 
+// removing temporarily
+int temp = 10
+if(temp == 2){ 
 // Loop through 8 times to spin the motor in opposite directions to take additional measurements
 for(int i = 0; i < 8; i++) { // 360 / 32 = 11.25
     int dir = 0;
@@ -390,5 +388,6 @@ for(int i = 0; i < 8; i++) { // 360 / 32 = 11.25
     // Stop ranging after taking all measurements
     VL53L1X_StopRanging(dev);
     // Wait indefinitely
-    while(1) {}
+   // while(1) {}
+  }
 }
