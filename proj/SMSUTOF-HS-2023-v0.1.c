@@ -139,14 +139,30 @@ void FlashLED(int flash_count);
 void spin_cw(uint8_t dataReady, uint16_t Distance);
 void spin_ccw(uint8_t dataReady, uint16_t Distance);
 void take_measurement(uint8_t dataReady, uint16_t Distance);
-
+void bus_pulse();
 /* *********************************************************************************************/
 // ******************************* !! MAIN CODE BEGINS !! *********************************** //
 /* ********************************************************************************************/
 
+/*
+This program interfaces with a Time of Flight sensor using I2C and takes measurements after rotating the sensor on a motor.
+The motor is programmed to spin clockwise then return home. 
+An onboard button PJ1 sets an interrupt routine in the program to allow for measurements to be taken.
+Run this after running the respective python file to allow for measurements to be recorded.
+*/ 
+
 uint16_t	dev = 0x29;			//address of the ToF sensor as an I2C slave peripheral
 int status=0;
 int totalsteps = 0;
+
+void bus_pulse(){
+  while(1){
+		GPIO_PORTN_DATA_R=0b00001111;
+		SysTick_Wait(50000);
+		GPIO_PORTN_DATA_R=0b00000000;
+		SysTick_Wait(50000);
+	}
+}
 
 // Flashes D3 - takes parameter for number of flashes
 void FlashLED(int flash_count){
@@ -263,6 +279,9 @@ int main(void) {
   // 	sprintf(printf_buffer,"(Model_ID, Module_Type)=0x%x\r\n",wordData);
   // 	UART_printf(printf_buffer);
 
+
+  // uncomment and connect probes to ad2 to check bus speed of system 
+  //bus_pulse();
   // Booting ToF chip
   while(sensorState==0){
   status = VL53L1X_BootState(dev, &sensorState);
