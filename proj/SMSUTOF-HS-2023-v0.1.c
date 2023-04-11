@@ -20,6 +20,7 @@
 
 #define MAXRETRIES              5           // number of receive attempts before giving up
 
+// initialising ports, protocols, etc
 void I2C_Init(void){
   SYSCTL_RCGCI2C_R |= SYSCTL_RCGCI2C_R0;           													// activate I2C0
   SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R1;          												// activate port B
@@ -106,7 +107,34 @@ void PortJ_Init(void){
 	GPIO_PORTJ_AMSEL_R &= ~0x03;											//??Disable analog functionality on PJ1		
 	GPIO_PORTJ_PUR_R |= 0x03;													//	Enable weak pull up resistor
 }
+// Interrupt initialization for GPIO Port J IRQ# 51
+void PortJ_Interrupt_Init(void){
+	
+		FallingEdges = 0;       // initialize counter
 
+	
+		GPIO_PORTJ_IS_R = 0;    	// (Step 1) PJ1 is edge-sensitive 
+		GPIO_PORTJ_IBE_R = 0;   	//     			PJ1 is not both edges 
+		GPIO_PORTJ_IEV_R = 0;    	//     			PJ1 falling edge event 
+		GPIO_PORTJ_ICR_R = 0x02;     // 					clear interrupt flag by setting proper bit in ICR register
+		GPIO_PORTJ_IM_R = 0x02;    	// 					arm interrupt on PJ1 by setting proper bit in IM register
+    
+		NVIC_EN1_R = 0x00080000;           // (Step 2) enable interrupt 51 in NVIC
+	
+		NVIC_PRI12_R = 0xA0000000; 				// (Step 4) set interrupt priority 5
+
+		EnableInt();           							// (Step 3) Enable Global Interrupt. lets go!
+}
+//	(Step 5) IRQ Handler (Interrupt Service Routine).  
+//  				This must be included and match interrupt naming convention
+//	 				in startup_msp432e401y_uvision.s 
+//					(Note - not the same as Valvano textbook).
+void GPIOJ_IRQHandler(void){
+  FallingEdges = FallingEdges + 1;	// Increase the global counter variable ;Observe in Debug Watch Window
+	GPIO_PORTJ_ICR_R = 0x02;     					// acknowledge flag by setting proper bit in ICR register
+}
+
+// init function calls
 void FlashLED(int flash_count);
 void spin_cw(uint8_t dataReady, uint16_t Distance);
 void spin_ccw(uint8_t dataReady, uint16_t Distance);
@@ -115,6 +143,7 @@ void take_measurement(uint8_t dataReady, uint16_t Distance);
 /* *********************************************************************************************/
 // ******************************* !! MAIN CODE BEGINS !! *********************************** //
 /* ********************************************************************************************/
+
 uint16_t	dev = 0x29;			//address of the ToF sensor as an I2C slave peripheral
 int status=0;
 int totalsteps = 0;
@@ -129,6 +158,7 @@ void FlashLED(int flash_count){
     }
 }
 
+// spinning clockwise and measuring
 void spin_cw(uint8_t dataReady, uint16_t Distance){
     int delay = 4000; // minimum delay between states for given clock
     int angle = 64; // 512/8 = 64
@@ -156,6 +186,7 @@ void spin_cw(uint8_t dataReady, uint16_t Distance){
 		}     
 }
 
+// spinning counter clockwise and measuring 
 void spin_ccw(uint8_t dataReady, uint16_t Distance){
     int delay = 4000; // minimum delay between states for given clock
     int angle = 64; // 512/8 = 64
@@ -203,6 +234,7 @@ void take_measurement(uint8_t dataReady, uint16_t Distance){
   }
 
 int main(void) {
+  // varaibles to store tof data 
   uint8_t byteData, sensorState=0, myByteArray[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} , i=0;
   uint16_t wordData;
   uint16_t Distance;
@@ -212,7 +244,7 @@ int main(void) {
   uint8_t RangeStatus;
   uint8_t dataReady;
 
-	//initialize
+	//initialisation 
 	PLL_Init();	
 	SysTick_Init();
 	onboardLEDs_Init();
@@ -224,7 +256,7 @@ int main(void) {
   PortF0F4_Init();
   PortH_Init();
   PortJ_Init();
-
+	PortJ_Interrupt_Init();	
 
 
   // 	status = VL53L1X_GetSensorId(dev, &wordData);
@@ -253,30 +285,91 @@ int main(void) {
 
   status = VL53L1X_StartRanging(dev);   // This function has to be called to enable the ranging
 
-	
-  for(int i = 0; i < 8; i++) { // 360 / 32 = 11.25
+	while(1){
+		//wait for interupt from button to start
+		WaitForInt();
+		// Booting ToF chip
+		while(sensorState==0){
+			status = VL53L1X_BootState(dev, &sensorState);
+			SysTick_Wait10ms(10);
+		}
 
+		status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
+		
+		/* This function must to be called to initialize the sensor with the default setting  */
+		status = VL53L1X_SensorInit(dev);
+		Status_Check("SensorInit", status);
+
+		
+		/* Optional functions to be used to change the main ranging parameters according the application requirements to get the best ranging performances */
+	//  status = VL53L1X_SetDistanceMode(dev, 2); /* 1=short, 2=long */
+	//  status = VL53L1X_SetTimingBudgetInMs(dev, 100); /* in ms possible values [20, 50, 100, 200, 500] */
+	//  status = VL53L1X_SetInterMeasurementInMs(dev, 200); /* in ms, IM must be > = TB */
+
+		status = VL53L1X_StartRanging(dev);   // This function has to be called to enable the ranging
+
+		
+// 16 steps taken
+for(int i = 0; i < 16; i++) {
+    // Wait until the ToF sensor's data is ready
+    while (dataReady == 0){
+        status = VL53L1X_CheckForDataReady(dev, &dataReady);
+        VL53L1_WaitMs(dev, 5);
+    }
+    dataReady = 0;
+    
+    // Read the data values from ToF sensor
+    status = VL53L1X_GetRangeStatus(dev, &RangeStatus);
+    status = VL53L1X_GetDistance(dev, &Distance); // The Measured Distance value
+    status = VL53L1X_GetSignalRate(dev, &SignalRate);
+    status = VL53L1X_GetAmbientRate(dev, &AmbientRate);
+    status = VL53L1X_GetSpadNb(dev, &SpadNum);
+    
+    status = VL53L1X_ClearInterrupt(dev); /* clear interrupt has to be called to enable next interrupt*/
+    
+    // Print the resulted readings to UART
+    sprintf(printf_buffer,"%u\r\n", Distance);
+    UART_printf(printf_buffer);
+    
+    // Flash LED and delay before next measurement
+    GPIO_PORTF_DATA_R = 0b00000001;
+    SysTick_Wait10ms(30);
+    GPIO_PORTF_DATA_R = 0b00000000;
+    spin();
+    SysTick_Wait10ms(150);
+}
+// Spin motor in opposite direction to complete a full rotation
+spin_ccw();
+// Stop ranging after taking all measurements
+VL53L1X_StopRanging(dev);
+
+// Loop through 8 times to spin the motor in opposite directions to take additional measurements
+for(int i = 0; i < 8; i++) { // 360 / 32 = 11.25
     int dir = 0;
     if(!dir){
-      // check for peripheral button press to stop 
-    if((GPIO_PORTM_DATA_R&0b00000001)==0){
-    SysTick_Wait10ms(10);
-    break;
-    }
-    spin_cw(dataReady, Distance);	
-    totalsteps = 0;
+        // Check for peripheral button press to stop
+        if((GPIO_PORTM_DATA_R&0b00000001)==0){
+            SysTick_Wait10ms(10);
+            break;
+        }
+        // Spin motor clockwise and take distance measurements
+        spin_cw(dataReady, Distance);	
+        totalsteps = 0;
     }else if (dir){
-    // check for peripheral button press to stop 
-    if((GPIO_PORTM_DATA_R&0b00000001)==0){
-    SysTick_Wait10ms(10);
-    break;
+        // Check for peripheral button press to stop
+        if((GPIO_PORTM_DATA_R&0b00000001)==0){
+            SysTick_Wait10ms(10);
+            break;
+        }
+        // Spin motor counterclockwise and take distance measurements
+        spin_ccw(dataReady, Distance); 
+        totalsteps = 0;
     }
-    spin_ccw(dataReady, Distance); 
-    totalsteps = 0;
-    }
+    // toggle to switch direction again
     dir ^= 1;
 
+    // Stop ranging after taking all measurements
     VL53L1X_StopRanging(dev);
+    // Wait indefinitely
     while(1) {}
-    }
 }
