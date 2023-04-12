@@ -132,6 +132,20 @@ void PortJ_Interrupt_Init(void){
 void GPIOJ_IRQHandler(void){
   FallingEdges = FallingEdges + 1;	// Increase the global counter variable ;Observe in Debug Watch Window
 	GPIO_PORTJ_ICR_R = 0x02;     					// acknowledge flag by setting proper bit in ICR register
+  if ((GPIO_PORTJ_DATA_R & 0b00000010) == 0){
+ SysTick_Wait10ms(10);
+				return;
+             }
+      if ((GPIO_PORTJ_DATA_R & 0b00000001) == 0){
+while(sensorState==0){
+			status = VL53L1X_BootState(dev, &sensorState);
+			SysTick_Wait10ms(10);
+      FlashLED2();
+		}
+          }
+										//Flash the LED D2 one time
+													//Flash the LED D2 one time
+	GPIO_PORTJ_ICR_R = 0x03;     					// Acknowledge flag by setting proper bit in ICR register
 }
 
 // init function calls
