@@ -323,8 +323,8 @@ int main(void) {
 		Status_Check("SensorInit", status);
 		status = VL53L1X_StartRanging(dev);   // This function has to be called to enable the ranging
 
-  // 
-  for(int i = 0; i < 8; i++) {
+  
+  for(int i = 0; i < 8; i++) { // 64*8 = 512
     // Wait until the ToF sensor's data is ready
     while (dataReady == 0){
         status = VL53L1X_CheckForDataReady(dev, &dataReady);
@@ -349,7 +349,7 @@ int main(void) {
     GPIO_PORTF_DATA_R = 0b00000001;
     SysTick_Wait10ms(30);
     GPIO_PORTF_DATA_R = 0b00000000;
-    spin();
+    spin_cw();
     SysTick_Wait10ms(150);
 }
 // Spin motor in opposite direction to complete a full rotation
