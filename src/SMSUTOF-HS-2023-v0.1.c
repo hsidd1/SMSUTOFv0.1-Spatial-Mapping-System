@@ -192,7 +192,7 @@ void spin_cw(uint8_t dataReady, uint16_t Distance){
       totalsteps++;
 		}
     // stop button
-    if(GPIO_PORTJ_DATA_R == 0b0){
+    if((GPIO_PORTJ_DATA_R & 0b00000001) == 0){
       SysTick_Wait10ms(10);
 				return;
     }
@@ -220,7 +220,7 @@ void spin_ccw(uint8_t dataReady, uint16_t Distance){
       totalsteps++;
 		}
     // stop button PJ1 
-    if(GPIO_PORTJ_DATA_R == 0b00000000){
+    if((GPIO_PORTJ_DATA_R & 0b00000001) == 0){
       SysTick_Wait10ms(10);
 				return;
     }
