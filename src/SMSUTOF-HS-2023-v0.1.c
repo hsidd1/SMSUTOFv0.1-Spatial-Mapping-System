@@ -168,13 +168,17 @@ Run this after running the respective python file to allow for measurements to b
 uint16_t	dev = 0x29;			//address of the ToF sensor as an I2C slave peripheral
 int status=0;
 int totalsteps = 0;
+// flags for measure and spin button toggle
+int startstop_measure = 0;
+int startstop_spin = 0;
 
+// call for bus speed measurement 
 void bus_pulse(){
   while(1){
 		GPIO_PORTN_DATA_R=0b00001111;
-		SysTick_Wait(50000);
+		SysTick_Wait(20000);
 		GPIO_PORTN_DATA_R=0b00000000;
-		SysTick_Wait(50000);
+		SysTick_Wait(20000);
 	}
 }
 
@@ -372,8 +376,8 @@ spin_ccw();
 VL53L1X_StopRanging(dev);
 
 // removing temporarily
-int temp = 10
-if(temp == 2){ 
+int temp = 0
+if(temp){ 
 // Loop through 8 times to spin the motor in opposite directions to take additional measurements
 for(int i = 0; i < 8; i++) { // 360 / 32 = 11.25
     int dir = 0;

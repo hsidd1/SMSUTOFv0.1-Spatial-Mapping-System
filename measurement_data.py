@@ -25,7 +25,7 @@ s.reset_input_buffer()
 with open("pointdata.xyz", "w") as f:
     steps = 0
     x = 0 # Initial x-displacement (mm)
-    STEP_INCREMENT = 250 # X-displacement per step (mm)
+    STEP_INCREMENT = 350 # X-displacement per step (mm)
     ROTATION = 32 # Modify to number of steps for next measurement taken
     TOTAL_STEPS = 512 # One rotation is 512 steps for 28BYJ-48 motor
     num_increments = int(input("Enter number of increments in measurement: ")) # How many displacement increments the program runs for 
