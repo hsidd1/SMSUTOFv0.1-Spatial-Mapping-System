@@ -12,7 +12,8 @@
 \usepackage{siunitx}
 \usepackage{booktabs}
 \usepackage{fancyhdr}
-
+\usepackage{tabularx}
+\usepackage{caption}
 \usepackage[export]{adjustbox}
 \usepackage[top=1in, left=0.5in, right=0.5in, bottom=1in]{geometry}
 \addtolength{\topmargin}{0in}
@@ -141,18 +142,85 @@ To begin data acquisition, the additional push button is pressed to enable data 
     \caption{Flow graph}
     \label{fig:flowgraph}
 \end{figure}
+
 \section{Device Characteristics Table}
-\begin{tabular}{|p{2in}|p{4in}|}
+\begin{center}
+\begin{tabularx}{0.5\textwidth}{|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|>{\centering\arraybackslash}X|}
 \hline
-\textbf{Specification} & \textbf{Description} \
+\textbf{Characteristic} & \textbf{Description} \\
 \hline
-Bus speed & 20MHz \
+Bus Speed & 20MHz \\
 \hline
-Port & COM4 \
+Serial Port & COM4 \\
+\hline
+Communication Speed & 115200 bps \\
+\hline
+Measurement Status & D3 \\
+\hline
+\end{tabularx}
+\captionof{table}{Device Characteristics}
+\end{center}
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Stepper Motor Pin Assignments}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{ULN2003 Driver Board} & \textbf{MCU} \\
+\hline
++ (5V) & 5V \\
+\hline
+- (5V) & GND \\
+\hline
+IN1 & PH0 \\
+\hline
+IN2 & PH1 \\
+\hline
+IN3 & PH2 \\
+\hline
+IN4 & PH3 \\
 \hline
 \end{tabular}
+\captionof{table}{Stepper Motor Pinout}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{Time-of-Flight Sensor Pin Assignments}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{VL53L1X} & \textbf{MCU} \\
+\hline
+VDD & - \\
+\hline
+VIN & VCC (3.3V or 5V) \\
+\hline
+GND & GND \\
+\hline
+SDA & PB3 (I2C0 SDA) \\
+\hline
+SCL & PB2 (I2C0 SCL)  \\
+\hline
+XSHUT & - \\
+\hline
+GPIO1 & - \\
+\hline
+\end{tabular}
+\captionof{table}{Time-of-Flight Sensor Pinout}
+\end{minipage}
+
+
 \section{Detailed Description}
 \subsection{Distance Measurement}
+\textbf{Acquisition:}\\
+The VL53L1X sensor utilizes Light Detection and Ranging (LIDAR) technology to accurately measure distances. It emits a pulse of light with a wavelength of 940 nm, which is then reflected back to the sensor by an object (maximum 4 m away). The sensor measures the time it takes for the emitted light pulse to reach the object and be reflected back to the detector. By utilizing the known speed of light and the measured time, the VL53L1X calculates the distance to the object with high accuracy as follows:
+$$Measured\ Distance = \frac{Photon\ Travel\ Time}{2}\times Speed\ of\ Light$$ The sensor is mounted to a motor that completes 360 degree rotations (512 steps). At every 64 steps, or 45 degrees, a user LED is flashed to indicate a measurement (in mm) has been taken by the sensor. This is achieved through interfacing with the sensor and micro controller via $\mathrm{I^2C}$ serial communication. In total, this allows for 8 measurements to be taken in a single rotation, and the program can be modified to measure at smaller number of steps to take more measurements for more accuracy at the cost of time (use-case dependent configuration). \\ 
+\textbf{Data Processing:} \\
+Data is processed and converted via mathematical computation. When given the motor's angle $\theta$, the program increments by the measurement angle rotation each time and computes the coordinates using trigonometric properties. This is computed as $angle = steps/(TOTAL STEPS) \times 2\pi$ where steps is incremented by 45 degrees and TOTAL STEPS is set to 512 - these reset each time a rotation is complete i.e. when 512 steps have completed. For a given distance measurement $r$, we obtain that $y = r\cos{\theta}$ and $z = r\sin{\theta}$ for the vertical plane. X coordinate is computed through configuring a physical step increment taken for each successive measurement rotation in the program and incrementing the coordinate for the next spatial scan based on this value (350mm default configuration). Together these coordinates can be used for plotting and mapping. 
+
+
+
+
 \subsection{Visualization}
 \section{Application Example with Expected Output}
 \section{User's Guide}
