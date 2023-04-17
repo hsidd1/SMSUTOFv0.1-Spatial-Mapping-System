@@ -5,9 +5,8 @@
 \usepackage{amsmath}
 \usepackage{listings}
 \usepackage{xcolor}
-
-\usepackage[margin=1in]{geometry}
-
+\usepackage{textcomp}
+\usepackage{multicol}
 \usepackage[utf8]{inputenc}
 \usepackage{parallel}
 \usepackage{siunitx}
@@ -15,7 +14,7 @@
 \usepackage{fancyhdr}
 
 \usepackage[export]{adjustbox}
-\usepackage[margin=0.5in]{geometry}
+\usepackage[top=1in, left=0.5in, right=0.5in, bottom=1in]{geometry}
 \addtolength{\topmargin}{0in}
 
 \usepackage{libertine}
@@ -37,7 +36,8 @@
 \pagestyle{fancy}
 
 \lhead{Hamza Siddiqui}
-\chead {\today}
+%\chead {\today}
+\chead {April 16, 2023}
 \rhead{SMSUTOF HS 2023 v0.1}
 
 
@@ -60,22 +60,23 @@
 \begin{figure}
 \begin{minipage}{0.47\textwidth}
 
-\section*{Overview}
-    \begin{itemize}
-        \item Spatial distance measurement via ToF
-        \item Serial interfacing via $\mathrm{I^2C}$
-        \item Signal Preconditioning
-        \item ADC
-        \item Data Processing
-        \item Control and Communication
-    \end{itemize}
+\section*{Core Device Components}
+\begin{itemize}
+    \item Microcontroller Unit (ARM\textregistered \ Cortex\textregistered-M4F TI MSP432E401Y SimpleLink\texttrademark) 
+    \item Stepper Motor (28BYJ-48 Velleman\textregistered\ 5 VDC Stepper Motor with ULN2003 Driver Board)
+    \item Time-of-Flight Sensor (ST FlightSense\texttrademark \ VL53L1X)
+    \item Additional Push Button 
+    \item Removable Sensor Mount (Hamza Electronics\texttrademark)
+    \item Fiberboard Case (Hamza Electronics\texttrademark)
+\end{itemize}
+
 
 
 \end{minipage}
 \hfill
 \begin{minipage}{0.47\textwidth}
 \centering
-\includegraphics[width=0.7\textwidth,right]{product.jpg} %PRODUCT IMAGE PLACEHOLDER
+\includegraphics[width=0.7\textwidth,right]{product.png} %PRODUCT IMAGE PLACEHOLDER
 
 \end{minipage}
 \end{figure}
@@ -86,14 +87,70 @@
 
 \begin{document}
 \maketitle
+As a future member of the engineering profession, the student is responsible for performing the required work in an honest manner, without plagiarism and cheating.
+Submitting this work with my name and student number is a statement and understanding that this work is my own and adheres to the Academic Integrity Policy of McMaster University and the Code of Conduct of the Professional Engineers of Ontario.
 \thispagestyle{fancy}
 
 \newpage
 \section{Device Overview}
 \subsection{Features}
+\begin{multicols}{2}
+\begin{itemize}
+\item ARM Cortex-M4F TI MSP432E401Y Microcontroller (\$53.47)
+    \begin{itemize}
+        \item Bus frequency of 20MHz (configured via phase-locked loop; default core frequency of 120MHz)
+        \item Four onboard LEDs - D3 flash functionality on each measurement
+        \item Two onboard buttons (PJ1 for start/stop of motor rotation) and one reset button
+        \item 1MB of flash, 256kB of SRAM
+        \item  Communication interfaces including USB-OTG, CAN, Quad-SPI (QSSI), $\mathrm{I^2C}$, SPI,  and UART
+        \item Two 12-Bit SAR-Based ADC Modules (2 Msps)
+    \end{itemize}
+\item MOT-28BYJ-48 Stepper Motor with ULN2003 driver (\$6.99)
+    \begin{itemize}
+        \item 5-12 VDC Operating Range 
+        \item 64 steps/revolution 
+        \item Frequency of 100Hz
+        \item 4 phases with 4 step-indicator LEDs
+    \end{itemize}
+\item VL53L1X Time-of-Flight Sensor (\$25.32)
+    \begin{itemize}
+        \item Communication via $\mathrm{I^2C}$ (upto 400kHz)
+        \item 4 m ranging and ranging frequency of 50Hz
+        \item 2.6-5.5V supply range, 2.8V operating range
+        \item Emitter: 940 nm invisible laser (Class1)
+    \end{itemize}
+\item Additional Push Button (\$0.60)
+    \begin{itemize}
+        \item Start/stop functionality for data acquisition
+    \end{itemize}
+\item Additional System Features
+    \begin{itemize}
+        \item UART serial communication between device and PC
+        \item $\mathrm{I^2C}$ serial communication between device and Time-of-Flight sensor
+        \item Baud rate of 115200
+        \item C-language programming for device instructions, Python programming for visualization (via Pyserial and Open3d)
+    \end{itemize}
+\end{itemize}
+\end{multicols}
 \subsection{General Description}
+To begin data acquisition, the additional push button is pressed to enable data processing, then the onboard button is pressed to begin taking measurements by spinning the motor and interfacing with the Time-of-Flight (ToF) sensor. The SMSUTOF HS 2023 utilizes a transducer which provides a digital output. Spatial distance measurements are acquired via the ToF sensor using $\mathrm{I^2C}$, while displacement is fixed at 30 cm. At each angle a measurement is taken, the D3 LED flashes. Together these measurements allow the device to measure a 3-D area. These signals are converted to electric signals, then conditioned into digital form and are finally converted to discrete digital values during the ADC process. The system communicates this to the user PC via UART asynchronous serial communication. A Python program is run on the PC and interfaces via their UART COM port and a baud rate of 115200, which then transfers measurement data to the PC and allows it to be stored in a .xyz file. This collected data is then used to generate a 3-D plot of the area that has been scanned via a Python program using open3d. The points for this plot are generated using trigonometric properties based on the angle and y,z coordinates generated, along with the fixed x-coordinate increment. If at anytime the button is pressed again during the scanning process, the data acquisition will be stopped. 
 \subsection{Block Diagram (Data Flow Graph)}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{images/flowgraph.png}
+    \caption{Flow graph}
+    \label{fig:flowgraph}
+\end{figure}
 \section{Device Characteristics Table}
+\begin{tabular}{|p{2in}|p{4in}|}
+\hline
+\textbf{Specification} & \textbf{Description} \
+\hline
+Bus speed & 20MHz \
+\hline
+Port & COM4 \
+\hline
+\end{tabular}
 \section{Detailed Description}
 \subsection{Distance Measurement}
 \subsection{Visualization}
