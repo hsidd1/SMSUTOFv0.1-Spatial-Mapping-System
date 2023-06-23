@@ -26,19 +26,21 @@ Ensure the ToF is mounted to the stepper motor. The Keil project should be flash
 
 ## Software Installation:
 
-1. Download Python 3.9, which can be found at https://www.python.org/downloads/ under specific release downloads.
-2. Install NumPy, open3d, and Pyserial:
+The embedded C code can be run on [Keil uVision](https://www.keil.com/download/) and flashed directly onto the microcontroller from the IDE.
 
-`pip install numpy`
+### Python Requirements
 
-`pip install open3d`
+It is recommended to use a virtual environment, as this program uses libraries compatible upto [Python 3.9](https://www.python.org/downloads/). If you choose to do this with conda:
 
-`pip install pyserial`
+```sh
+conda create -n <env-name> python=3.9
+```
 
-Refer to their documentation for any issues:
-* NumPy documentation: https://numpy.org/doc/1.21/
-* Open3D documentation: http://www.open3d.org/docs/release/
-* Pyserial documentation: https://pyserial.readthedocs.io/en/latest/pyserial.html
+You can then install the required packages ([NumPy](https://numpy.org/doc/1.21/), [Open3D](http://www.open3d.org/docs/release/), and [Pyserial](https://pyserial.readthedocs.io/en/latest/pyserial.html)):
+
+```sh
+pip install -r requirements.txt
+```
 
 ## How to use the device after setting up: 
 
