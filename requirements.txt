@@ -1,0 +1,4 @@
+numpy==1.14.2
+numpy==1.24.3
+open3d==0.17.0
+pyserial==3.5
